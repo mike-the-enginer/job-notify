@@ -6,7 +6,7 @@ export default defineConfig({
     server: {
         proxy: {
             '/api': {
-                target: 'http://localhost:3000',
+                target: 'http://localhost:3003',
                 changeOrigin: true,
                 rewrite: (path) => path.replace(/^\/api/, '')
             }
@@ -16,6 +16,7 @@ export default defineConfig({
         react(),
         VitePWA({
             registerType: 'autoUpdate',
+            devOptions: { enabled: true },
             includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
             manifest: {
                 name: 'BB Job Radar',

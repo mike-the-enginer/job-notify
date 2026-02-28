@@ -1,8 +1,6 @@
-import Parser from 'rss-parser';
+import * as cheerio from 'cheerio';
 import { ingestJobs } from '../services/jobs.js';
 import { Job } from 'shared';
-
-const parser = new Parser();
 
 function parseProfesiaExperience(title: string, desc: string): 'entry' | 'junior' | 'mid' | 'senior' | 'unknown' {
     const text = (title + ' ' + desc).toLowerCase();
@@ -29,37 +27,47 @@ function parseWorkdays(desc: string): 'mon_fri' | 'weekend' | 'unknown' {
 
 export async function fetchProfesiaJobs() {
     try {
-        // Attempting to fetch an RSS feed if it exists. 
-        // In reality, if it doesn't, we just return empty or mock data for MVP based on constraint.
-        const url = 'https://www.profesia.sk/rss/zoznam-pracovnych-ponuk/'; // Typical Profesia RSS format
-        const feed = await parser.parseURL(url);
+        const url = 'https://www.profesia.sk/praca/banska-bystrica/';
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        const html = await res.text();
+        const $ = cheerio.load(html);
 
-        const parsedJobs: Omit<Job, 'id' | 'discoveredAt'>[] = feed.items.map(item => {
-            const title = item.title || '';
-            const desc = item.contentSnippet || item.content || '';
-            return {
-                title,
-                company: item.creator || 'Unknown Company',
-                locationCity: 'Banská Bystrica', // Force for this MVP aggregator depending on the feed URL
-                locationRegion: null,
-                employmentType: 'full-time',
-                scheduleText: desc.substring(0, 200),
-                shiftType: parseShift(desc),
-                workdays: parseWorkdays(desc),
-                experienceLevel: parseProfesiaExperience(title, desc),
-                salaryMin: null,
-                salaryMax: null,
-                salaryCurrency: 'EUR',
-                descriptionSnippet: desc.substring(0, 500),
-                url: item.link || '',
-                source: 'Profesia.sk',
-                externalId: item.guid || null,
-                postedAt: null,
-                tags: [],
-                hashSignature: '' // populated during ingestion
-            };
+        const parsedJobs: Omit<Job, 'id' | 'discoveredAt'>[] = [];
+
+        $('.list-row').each((i, el) => {
+            const titleEl = $(el).find('h2 a');
+            const title = titleEl.text().trim();
+            const jobUrl = titleEl.attr('href') || '';
+            const company = $(el).find('.employer').text().trim();
+            const desc = $(el).text().trim(); // Full text of the row for filtering
+
+            if (title) {
+                parsedJobs.push({
+                    title,
+                    company: company || 'Unknown Company',
+                    locationCity: 'Banská Bystrica', // implicit from the URL
+                    locationRegion: null,
+                    employmentType: 'full-time',
+                    scheduleText: desc.substring(0, 200),
+                    shiftType: parseShift(desc),
+                    workdays: parseWorkdays(desc),
+                    experienceLevel: parseProfesiaExperience(title, desc),
+                    salaryMin: null,
+                    salaryMax: null,
+                    salaryCurrency: 'EUR',
+                    descriptionSnippet: desc.substring(0, 500).replace(/\s+/g, ' '),
+                    url: 'https://profesia.sk' + jobUrl,
+                    source: 'Profesia.sk',
+                    externalId: jobUrl.split('?')[0], // Extract ID part of URL roughly
+                    postedAt: null,
+                    tags: [],
+                    hashSignature: ''
+                });
+            }
         });
 
+        // Apply filters directly based on user criteria
         const filtered = parsedJobs.filter(j =>
             (j.experienceLevel === 'entry' || j.experienceLevel === 'unknown') &&
             j.shiftType !== 'night' &&
@@ -68,7 +76,7 @@ export async function fetchProfesiaJobs() {
 
         return await ingestJobs(filtered);
     } catch (error) {
-        console.warn('Failed to fetch Profesia RSS logic:', (error as Error).message);
+        console.warn('Failed to fetch Profesia HTML logic:', (error as Error).message);
         return { inserted: 0, skipped: 0, durationMs: 0 };
     }
 }

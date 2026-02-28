@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 
-const API_URL = '/api'; // Assuming proxy is set
+const API_BASE = import.meta.env.VITE_API_URL || '';
+const API_URL = `${API_BASE}/api`;
 
 export function usePushSubscription() {
     const [isSubscribed, setIsSubscribed] = useState(false);

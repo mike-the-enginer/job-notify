@@ -5,7 +5,8 @@ const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 export function useJobs(filters: FilterConfig) {
     const query = new URLSearchParams(filters as any).toString();
-    const { data, error, isLoading } = useSWR<Job[]>(`/api/jobs?${query}`, fetcher, {
+    const API_BASE = import.meta.env.VITE_API_URL || '';
+    const { data, error, isLoading } = useSWR<Job[]>(`${API_BASE}/api/jobs?${query}`, fetcher, {
         refreshInterval: 60000 // refresh every minute
     });
 
