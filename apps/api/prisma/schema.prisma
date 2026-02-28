@@ -1,0 +1,46 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Job {
+  id                 String   @id @default(uuid())
+  title              String
+  company            String
+  locationCity       String
+  locationRegion     String?
+  employmentType     String?
+  scheduleText       String?
+  shiftType          String   // "day" | "night" | "unknown"
+  workdays           String   // "mon_fri" | "weekend" | "unknown"
+  experienceLevel    String   // "entry" | "junior" | "mid" | "senior" | "unknown"
+  salaryMin          Float?
+  salaryMax          Float?
+  salaryCurrency     String?
+  descriptionSnippet String
+  url                String
+  source             String
+  externalId         String?
+  postedAt           DateTime?
+  discoveredAt       DateTime @default(now())
+  tags               String[]
+  hashSignature      String   @unique
+
+  @@map("jobs")
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@map("push_subscriptions")
+}
